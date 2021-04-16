@@ -50,10 +50,8 @@ exports.getRate = (req, res, next) => {
                 method(requestArgs, (err, result, envelope, soapHeader) => {
                     const response = JSON.parse(JSON.stringify(result));
                     if(response.TipoCambioFechaInicialMonedaResult.TotalItems != 0){
-                        console.log(result)
                         
                         const rate = response.TipoCambioFechaInicialMonedaResult.Vars.Var[0]
-                        console.log(rate)
 
                         res.status(200).json({
                             "date": req.params.date,
@@ -72,22 +70,59 @@ exports.getRate = (req, res, next) => {
 
 exports.getIntervalRate = (req, res, next) => {
 
-    const currency = req.params.currency;
+    const currency = validateCurrency(req.params.currency);
     const date1 = validateDate(req.params.date1);
     const date2 = validateDate(req.params.date2);
 
-    if(validateCurrency(currency)){
+    if(!currency){
         res.status(404).json({"message": "Currency "+ req.params.currency +" not supported"})
     } else if(!date1 || !date2){
         res.status(404).json({"message": "Dates "+ req.params.date1 +", "+ req.params.date2 +" not supported"})
     }else {
-        res.status(200).json({
-            "start_date": req.params.date1,
-            "end_date": req.params.date2,
-            "currency": req.params.currency,
-            "mean": 7.746235,
-            "max": 7.75002,
-            "min": 7.74185
+
+
+        const requestArgs = {
+            "fechainit": date1,
+            "fechafin": date2,
+            "moneda": currency
+        }
+
+        const options = {};
+        WSDL.open(banguatUrl, options, (err, wsdl) => {
+            const clientOptions = {
+                WSDL_CACHE: {
+                    banguatwsdl: wsdl
+                }
+            };
+        
+            soap.createClient('banguatwsdl', clientOptions, (err, client) => {
+                
+                let method = client['TipoCambio']['TipoCambioSoap12']['TipoCambioRangoMoneda'];
+            
+                method(requestArgs, (err, result, envelope, soapHeader) => {
+                    const response = JSON.parse(JSON.stringify(result));
+
+                    if(response.TipoCambioRangoMonedaResult.TotalItems != 0){
+                        
+                        const rateArray = response.TipoCambioRangoMonedaResult.Vars.Var
+                        const mean = rateArray.reduce( (sum, actual) => (sum + actual.compra),0) / rateArray.length
+                        const max = rateArray.reduce( (num, actual) => ( actual.compra > num ? num = actual.compra : num), 0)
+                        const min = rateArray.reduce( (num, actual) => ( num == 0 ? num = actual.compra : actual.compra < num ? num = actual.compra : num), 0)
+                        
+                        res.status(200).json({
+                            "start_date": req.params.date1,
+                            "end_date": req.params.date2,
+                            "currency": req.params.currency,
+                            "mean": mean,
+                            "max": max,
+                            "min": min
+                        })
+                        
+                    } else {
+                        res.status(404).json({"message": "Problems to make the request"})
+                    }
+                })
+            })
         })
     }
 }

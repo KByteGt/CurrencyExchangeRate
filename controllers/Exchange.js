@@ -12,7 +12,8 @@ const validateCurrency = currency => {
     return currency != "USD" && currency != "EU"
 }
 
-const banguatUrl = "https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx";
+const banguatUrl = "https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx?WSDL";
+let options = {};
 
 exports.getRate = (req, res, next) => {
     const currency = req.params.currency

@@ -22,6 +22,7 @@ app.use( (req, res, next) => {
     next()
 });
 
+app.use(logger.console);
 
 app.use('/api', api);
 

@@ -33,3 +33,5 @@ app.use('/', (req,res) => {
 app.listen(config.server.port, config.server.ip, () => {
     console.log('Server started at: ' + config.getDir)
 });
+
+module.exports = api;

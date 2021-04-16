@@ -18,10 +18,6 @@ const validateCurrency = currency => {
 
 const banguatUrl = "https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx?WSDL";
 
-const soapRequest = new Promise( (resolve, reject) => {
-    
-})
-
 exports.getRate = (req, res, next) => {
     const currency = validateCurrency(req.params.currency)
     const date = validateDate(req.params.date)
@@ -48,18 +44,26 @@ exports.getRate = (req, res, next) => {
             };
         
             soap.createClient('banguatwsdl', clientOptions, (err, client) => {
-                let method = client['TipoCambio']['TipoCambioSoap12']['TipoCambioFechaInicialMoneda'];
                 
+                let method = client['TipoCambio']['TipoCambioSoap12']['TipoCambioFechaInicialMoneda'];
+            
                 method(requestArgs, (err, result, envelope, soapHeader) => {
                     const response = JSON.parse(JSON.stringify(result));
-                    const rate = response.TipoCambioFechaInicialMonedaResult.Vars.Var[0]
-                    console.log(rate)
+                    if(response.TipoCambioFechaInicialMonedaResult.TotalItems != 0){
+                        console.log(result)
+                        
+                        const rate = response.TipoCambioFechaInicialMonedaResult.Vars.Var[0]
+                        console.log(rate)
 
-                    res.status(200).json({
-                        "date": req.params.date,
-                        "currency": req.params.currency,
-                        "rate": rate.compra
-                    })
+                        res.status(200).json({
+                            "date": req.params.date,
+                            "currency": req.params.currency,
+                            "rate": rate.compra
+                        })
+                        
+                    } else {
+                        res.status(404).json({"message": "Problems to make the request"})
+                    }
                 })
             })
         })

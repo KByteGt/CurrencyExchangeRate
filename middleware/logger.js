@@ -3,5 +3,5 @@ const timestamp = new Date();
 
 exports.console = (req, res, next) => {
     console.log(config.getDir +" - "+ timestamp)
-    NodeList()
+    next()
 };

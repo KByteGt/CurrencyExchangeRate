@@ -1,33 +1,67 @@
-//https://www.google.com/finance/converter?a=1&from=USD&to='.$to
+"use strict";
+
+const soap = require('strong-soap').soap;
+const WSDL = soap.WSDL;
 
 const validateDate = date => {
     const dateArray = date.split("-")
 
-    if(dateArray.length != 3) return false
-    if(dateArray[0] < 2015) return false
-    return dateArray
+    if(dateArray.length != 3 || dateArray[0] < 2015) return null
+    return dateArray[2]+"/"+dateArray[1]+"/"+dateArray[0]
 }
 
 const validateCurrency = currency => {
-    return currency != "USD" && currency != "EU"
+    if(currency == "USD") return 2
+    if(currency == "EU") return 24
+    return null
 }
 
 const banguatUrl = "https://www.banguat.gob.gt/variables/ws/TipoCambio.asmx?WSDL";
-let options = {};
+
+const soapRequest = new Promise( (resolve, reject) => {
+    
+})
 
 exports.getRate = (req, res, next) => {
-    const currency = req.params.currency
+    const currency = validateCurrency(req.params.currency)
     const date = validateDate(req.params.date)
+    
+    console.log(currency, date)
 
-    if(validateCurrency(currency)){
-        res.status(404).json({"message": "Currency "+ req.params.currencyy +" not supported"})
+    if(!currency){
+        res.status(404).json({"message": "Currency "+ req.params.currency +" not supported"})
     } else if(!date){
         res.status(404).json({"message": "Date "+ req.params.date +" not supported"})
     } else {
-        res.status(200).json({
-            "date": req.params.date,
-            "currency": currency,
-            "rate": 7.74185
+
+        const requestArgs = {
+            "fechainit": date,
+            "moneda": currency
+        }
+
+        const options = {};
+        WSDL.open(banguatUrl, options, (err, wsdl) => {
+            const clientOptions = {
+                WSDL_CACHE: {
+                    banguatwsdl: wsdl
+                }
+            };
+        
+            soap.createClient('banguatwsdl', clientOptions, (err, client) => {
+                let method = client['TipoCambio']['TipoCambioSoap12']['TipoCambioFechaInicialMoneda'];
+                
+                method(requestArgs, (err, result, envelope, soapHeader) => {
+                    const response = JSON.parse(JSON.stringify(result));
+                    const rate = response.TipoCambioFechaInicialMonedaResult.Vars.Var[0]
+                    console.log(rate)
+
+                    res.status(200).json({
+                        "date": req.params.date,
+                        "currency": req.params.currency,
+                        "rate": rate.compra
+                    })
+                })
+            })
         })
     }
 }
